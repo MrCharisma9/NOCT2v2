@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOCTURN 2v2 TOURNAMENT</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #26262b;
+    --surface: #313136;
+    --surface2: #3a3a40;
+    --border: #55555c;
+    --accent: #ffffff;
+    --accent-dim: #c4c4c9;
+    --win: #ffffff;
+    --text: #f5f5f7;
+    --muted: #a8a8ae;
+    --finals: #ffffff;
+    --tbd: #6a6a70;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: auto;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.4;
+  }
+
+  .wrapper { position: relative; z-index: 1; padding: 24px 20px 40px; max-width: 1400px; margin: 0 auto; }
+
+  /* ── HEADER ── */
+  .header { text-align: center; margin-bottom: 18px; }
+  .header h1 {
+    font-family: 'Orbitron', monospace; font-size: clamp(18px,3vw,30px); font-weight: 900;
+    letter-spacing: 8px; text-transform: uppercase;
+    background: linear-gradient(135deg, #ffffff, #9a9a9a, #ffffff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header p { color: var(--muted); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin-top: 4px; }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .tbtn {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--muted); font-family: 'Rajdhani', sans-serif; font-size: 12px;
+    font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    padding: 7px 18px; cursor: pointer; transition: all 0.2s;
+  }
+  .tbtn:hover { border-color: var(--accent-dim); color: var(--text); }
+  .tbtn.admin-active { background: rgba(255,255,255,0.08); border-color: var(--accent); color: var(--accent); }
+  .tbtn.save-btn { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.3); color: var(--win); }
+  .tbtn.save-btn:hover { background: rgba(255,255,255,0.14); }
+  .tbtn.reset-btn { background: rgba(255,60,60,0.06); border-color: rgba(255,60,60,0.25); color: rgba(255,100,100,0.7); }
+  .tbtn.reset-btn:hover { border-color: rgba(255,80,80,0.6); color: #ff6060; }
+  .save-status { font-size: 11px; color: var(--win); letter-spacing: 1px; opacity: 0; transition: opacity 0.4s; }
+  .save-status.show { opacity: 1; }
+  .edit-hint { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  .admin-badge {
+    display: none; background: rgba(255,255,255,0.1); border: 1px solid var(--accent);
+    border-radius: 4px; color: var(--accent); font-size: 10px; font-weight: 700;
+    letter-spacing: 2px; padding: 3px 10px; text-transform: uppercase;
+  }
+  body.admin-mode .admin-badge { display: inline-block; }
+
+  /* ── BRACKET LAYOUT (single bracket, rounds stack top → bottom) ── */
+  .bracket-layout { display: flex; flex-direction: column; align-items: center; width: 100%; }
+  .bracket-title {
+    font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 4px; text-transform: uppercase; text-align: center;
+    padding: 8px 16px; margin-bottom: 16px; border-radius: 4px;
+    color: var(--accent); border-bottom: 2px solid var(--accent);
+    text-shadow: 0 0 12px rgba(255,255,255,0.25);
+  }
+
+  .main-bracket { width: 100%; }
+  .rounds { display: flex; flex-direction: column; gap: 22px; width: 100%; }
+
+  .round-col {
+    display: flex; flex-wrap: wrap; align-items: stretch; justify-content: center;
+    gap: 4px; position: relative; width: 100%;
+  }
+  .round-label {
+    flex: 0 0 100%;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent-dim); text-align: center; margin-bottom: 8px; font-weight: 700;
+  }
+
+  /* ── MATCH CARD ── */
+  .match {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    margin: 4px; width: 155px; overflow: hidden; transition: border-color 0.2s; position: relative;
+  }
+  .match.clickable { cursor: default; }
+  body.admin-mode .match.clickable { cursor: pointer; }
+  body.admin-mode .match.clickable:hover { border-color: var(--accent); box-shadow: 0 0 8px rgba(255,255,255,0.15); }
+  body.admin-mode .match.clickable::after {
+    content: '✎'; position: absolute; top: 3px; right: 5px;
+    font-size: 10px; color: var(--accent); opacity: 0; transition: opacity 0.2s;
+  }
+  body.admin-mode .match.clickable:hover::after { opacity: 1; }
+  .match.tbd-match { opacity: 0.45; }
+
+  .match-header {
+    background: var(--surface2); padding: 2px 8px; font-size: 10px;
+    letter-spacing: 1px; color: var(--muted); text-transform: uppercase; font-weight: 600;
+  }
+  .team-row {
+    display: flex; align-items: center; padding: 5px 8px; gap: 6px;
+    border-bottom: 1px solid var(--border); transition: background 0.15s;
+  }
+  .team-row:last-of-type { border-bottom: none; }
+  .team-row.winner { background: rgba(255,255,255,0.07); }
+  .team-row.winner .team-name { color: var(--win); font-weight: 700; }
+  .team-row.winner .team-score { color: var(--win); }
+  .team-name {
+    flex: 1; font-weight: 600; font-size: 13px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .team-name.tbd { color: var(--tbd); font-style: italic; }
+  .team-score { font-weight: 700; font-size: 13px; min-width: 18px; text-align: center; color: var(--muted); }
+
+  /* ── CHAMPION ── */
+  .finals-col {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; margin-top: 24px; gap: 10px; min-width: 190px;
+  }
+  .finals-label {
+    font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 900;
+    letter-spacing: 3px; color: var(--finals); text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(255,255,255,0.4); text-align: center; margin-bottom: 6px;
+  }
+  .champion-banner {
+    margin-top: 10px; text-align: center;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; padding: 10px 16px; width: 165px;
+    display: none;
+  }
+  .champion-banner.show { display: block; }
+  .champion-banner .champ-label { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .champion-banner .champ-name { font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 900; color: var(--finals); text-shadow: 0 0 12px rgba(255,255,255,0.5); }
+
+  /* ── LOGIN OVERLAY ── */
+  .login-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(6px);
+    z-index: 200; align-items: center; justify-content: center;
+  }
+  .login-overlay.open { display: flex; }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 28px; width: min(320px, 90vw); display: flex; flex-direction: column; gap: 14px;
+  }
+  .login-box h3 {
+    font-family: 'Orbitron', monospace; font-size: 13px; letter-spacing: 3px;
+    color: var(--accent); text-align: center; text-transform: uppercase;
+  }
+  .login-box input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 14px;
+    padding: 8px 12px; outline: none; transition: border-color 0.2s;
+  }
+  .login-box input:focus { border-color: var(--accent); }
+  .login-err { color: #ff5555; font-size: 11px; letter-spacing: 1px; text-align: center; display: none; }
+  .login-actions { display: flex; gap: 8px; }
+  .lbtn { flex: 1; padding: 9px; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border: none; transition: opacity 0.2s; }
+  .lbtn:hover { opacity: 0.8; }
+  .lbtn-ok { background: var(--accent); color: #000; }
+  .lbtn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── EDIT MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.78); backdrop-filter: blur(4px);
+    z-index: 150; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; width: 340px; box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  }
+  .modal h3 { font-family: 'Orbitron', monospace; font-size: 12px; letter-spacing: 3px; color: var(--text); margin-bottom: 16px; text-transform: uppercase; }
+  .field-group { margin-bottom: 13px; }
+  .field-group label { display: block; font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .field-group input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 14px;
+    padding: 7px 10px; outline: none; transition: border-color 0.2s;
+  }
+  .field-group input:focus { border-color: var(--accent); }
+  .field-group input[readonly] { opacity: 0.5; cursor: not-allowed; }
+  .winner-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+  .winner-btn {
+    flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--muted); font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600;
+    padding: 7px 4px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .winner-btn.active { background: rgba(255,255,255,0.12); border-color: var(--win); color: var(--win); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .btn { flex: 1; padding: 9px; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border: none; transition: opacity 0.2s; }
+  .btn:hover { opacity: 0.8; }
+  .btn-save { background: var(--win); color: #000; }
+  .btn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .propagate-note { font-size: 10px; color: var(--accent); letter-spacing: 1px; text-align: center; margin-bottom: 10px; }
+
+  /* ── MOBILE ── */
+  @media (max-width: 700px) {
+    .wrapper { padding: 14px 10px 40px; }
+    .match { width: 130px; }
+    .champion-banner { width: min(260px, 80vw); }
+    .team-name { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <h1>NOCTURN 2v2 TOURNAMENT</h1>
+    <p>32 Teams &nbsp;·&nbsp; Single Elimination Bracket</p>
+  </div>
+
+  <div class="toolbar">
+    <span class="admin-badge">⚡ ADMIN</span>
+    <button class="tbtn" id="adminBtn" onclick="openLogin()">🔐 Admin Login</button>
+    <button class="tbtn save-btn" id="saveBtn" style="display:none" onclick="manualSave()">💾 Save</button>
+    <button class="tbtn reset-btn" id="resetBtn" style="display:none" onclick="resetAll()">↺ Reset All</button>
+    <span class="save-status" id="saveStatus">✓ Saved!</span>
+    <span class="edit-hint" id="editHint">Admin login required to edit results</span>
+  </div>
+
+  <div class="bracket-layout">
+    <div class="main-bracket" id="main-bracket">
+      <div class="rounds" id="main-rounds"></div>
+    </div>
+
+    <div class="finals-col">
+      <div class="finals-label">⚡ Champion ⚡</div>
+      <div class="champion-banner" id="champion-banner">
+        <div class="champ-label">🏆 Winner</div>
+        <div class="champ-name" id="champ-name">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h3>🔐 Admin Access</h3>
+    <input type="password" id="pwInput" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-err" id="loginErr">Incorrect password. Try again.</div>
+    <div class="login-actions">
+      <button class="lbtn lbtn-cancel" onclick="closeLogin()">Cancel</button>
+      <button class="lbtn lbtn-ok" onclick="doLogin()">Enter</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Edit Match</h3>
+    <div class="propagate-note" id="propagate-note"></div>
+    <div class="field-group">
+      <label id="label-t1">Team 1</label>
+      <input type="text" id="input-t1" placeholder="Team name">
+    </div>
+    <div class="field-group">
+      <label>Score</label>
+      <input type="number" id="input-s1" placeholder="0" min="0">
+    </div>
+    <div class="field-group">
+      <label id="label-t2">Team 2</label>
+      <input type="text" id="input-t2" placeholder="Team name">
+    </div>
+    <div class="field-group">
+      <label>Score</label>
+      <input type="number" id="input-s2" placeholder="0" min="0">
+    </div>
+    <div style="font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">Select Winner</div>
+    <div class="winner-toggle">
+      <button class="winner-btn" id="win-btn-1" onclick="setWinner(1)">Team 1 ✓</button>
+      <button class="winner-btn" id="win-btn-2" onclick="setWinner(2)">Team 2 ✓</button>
+      <button class="winner-btn" id="win-btn-0" onclick="setWinner(0)">None</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-save" onclick="saveMatch()">Save & Advance</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// SECURITY: The password is NOT checked here at all.
+// The browser sends what's typed to your Worker, which checks
+// it server-side against a secret env var and hands back a
+// signed session token. Nothing secret ever reaches the client.
+// ══════════════════════════════════════════════════════════
+
+// ── INITIAL DATA (Round 1 — 16 matches / 32 teams) ────────
+const INIT_R1 = [
+  { t1:'Team 3',  t2:'Team 12', s1:'', s2:'', winner:0 },
+  { t1:'Team 27', t2:'Team 17', s1:'', s2:'', winner:0 },
+  { t1:'Team 4',  t2:'Team 13', s1:'', s2:'', winner:0 },
+  { t1:'Team 10', t2:'Team 8',  s1:'', s2:'', winner:0 },
+  { t1:'Team 29', t2:'Team 32', s1:'', s2:'', winner:0 },
+  { t1:'Team 18', t2:'Team 23', s1:'', s2:'', winner:0 },
+  { t1:'Team 11', t2:'Team 20', s1:'', s2:'', winner:0 },
+  { t1:'Team 24', t2:'Team 15', s1:'', s2:'', winner:0 },
+  { t1:'Team 25', t2:'Team 14', s1:'', s2:'', winner:0 },
+  { t1:'Team 22', t2:'Team 30', s1:'', s2:'', winner:0 },
+  { t1:'Team 16', t2:'Team 19', s1:'', s2:'', winner:0 },
+  { t1:'Team 21', t2:'Team 28', s1:'', s2:'', winner:0 },
+  { t1:'Team 5',  t2:'Team 9',  s1:'', s2:'', winner:0 },
+  { t1:'Team 6',  t2:'Team 7',  s1:'', s2:'', winner:0 },
+  { t1:'Team 2',  t2:'Team 26', s1:'', s2:'', winner:0 },
+  { t1:'Team 1',  t2:'Team 31', s1:'', s2:'', winner:0 },
+];
+
+// ── STATE ─────────────────────────────────────────────────
+function deepClone(x) { return JSON.parse(JSON.stringify(x)); }
+
+function labelForCount(count) {
+  if (count === 1) return 'Grand Final';
+  if (count === 2) return 'Semi-Finals';
+  if (count === 4) return 'Quarter-Finals';
+  if (count === 8) return 'Round of 16';
+  if (count === 16) return 'Round of 32';
+  return 'Round ' + count;
+}
+
+function buildEmptyRounds(r1, numRounds) {
+  const rounds = [{ label:'Round of 32', matches: deepClone(r1) }];
+  let prev = r1.length;
+  for (let i = 1; i < numRounds; i++) {
+    const count = Math.ceil(prev / 2);
+    rounds.push({
+      label: labelForCount(count),
+      matches: Array(count).fill(null).map(() => ({ t1:'TBD', t2:'TBD', s1:'', s2:'', winner:0 }))
+    });
+    prev = count;
+  }
+  return rounds;
+}
+
+// 16 matches → 8 → 4 → 2 → 1  (5 rounds)
+const MAIN_ROUNDS = 5;
+
+function defaultState() {
+  return {
+    main: { rounds: buildEmptyRounds(INIT_R1, MAIN_ROUNDS) }
+  };
+}
+
+let STATE = defaultState();
+let adminMode = false;
+
+// ── SECURE CLOUD SYNC (via your own Cloudflare Worker) ────
+// The Worker holds the real password + JSONBin key server-side.
+// Nothing secret lives in this file. See worker.js for setup.
+const WORKER_URL = "https://nocturn-bracket.rdxpoisonedbunny.workers.dev";
+
+function showSyncStatus(msg, color) {
+  const el = document.getElementById('saveStatus');
+  el.textContent = msg;
+  el.style.color = color || 'var(--win)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+async function loadFromCloud() {
+  try {
+    showSyncStatus('⟳ Loading...', 'var(--muted)');
+    const res = await fetch(`${WORKER_URL}/bracket`);
+    const record = await res.json();
+    const mainOk = record && record.main && record.main.rounds && record.main.rounds.length === MAIN_ROUNDS;
+    if (mainOk) {
+      STATE = record;
+      fullPropagate();
+      render();
+      showSyncStatus('✓ Live data loaded', 'var(--win)');
+    } else {
+      STATE = defaultState();
+      fullPropagate();
+      render();
+      await pushToCloud();
+      showSyncStatus('✓ Bracket initialized', 'var(--win)');
+    }
+  } catch(e) {
+    try {
+      const raw = localStorage.getItem('nocturn_bracket_v1');
+      if (raw) STATE = JSON.parse(raw);
+    } catch(e2) {}
+    fullPropagate();
+    render();
+    showSyncStatus('⚠ Offline mode', '#ffaa00');
+  }
+}
+
+async function pushToCloud() {
+  try {
+    const token = localStorage.getItem('nocturn_admin_token');
+    const res = await fetch(`${WORKER_URL}/bracket`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(STATE)
+    });
+    if (res.status === 401) {
+      exitAdmin();
+      showSyncStatus('⚠ Session expired — log in again', '#ffaa00');
+      return;
+    }
+    try { localStorage.setItem('nocturn_bracket_v1', JSON.stringify(STATE)); } catch(e) {}
+  } catch(e) {
+    try { localStorage.setItem('nocturn_bracket_v1', JSON.stringify(STATE)); } catch(e2) {}
+  }
+}
+
+function autoSave() {
+  try { localStorage.setItem('nocturn_bracket_v1', JSON.stringify(STATE)); } catch(e) {}
+}
+
+async function manualSave() {
+  showSyncStatus('⟳ Saving...', 'var(--muted)');
+  await pushToCloud();
+  showSyncStatus('✓ Saved & synced!', 'var(--win)');
+}
+
+async function resetAll() {
+  if (!confirm('Reset ALL bracket data? This cannot be undone.')) return;
+  STATE = defaultState();
+  fullPropagate();
+  render();
+  await pushToCloud();
+  showSyncStatus('↺ Reset complete', '#ffaa00');
+}
+
+// ── PROPAGATION ───────────────────────────────────────────
+function fullPropagate() {
+  const rounds = STATE.main.rounds;
+
+  for (let rIdx = 0; rIdx < rounds.length - 1; rIdx++) {
+    const curr = rounds[rIdx].matches;
+    const next = rounds[rIdx + 1].matches;
+
+    next.forEach(m => { m.t1 = 'TBD'; m.t2 = 'TBD'; });
+
+    curr.forEach((m, mIdx) => {
+      const nextMatchIdx = Math.floor(mIdx / 2);
+      const slot = (mIdx % 2 === 0) ? 't1' : 't2';
+      if (nextMatchIdx >= next.length) return;
+      const winnerName = m.winner === 1 ? m.t1 : m.winner === 2 ? m.t2 : null;
+      if (winnerName) next[nextMatchIdx][slot] = winnerName;
+    });
+
+    next.forEach(m => {
+      if (m.winner === 1 && m.t1 === 'TBD') m.winner = 0;
+      if (m.winner === 2 && m.t2 === 'TBD') m.winner = 0;
+    });
+  }
+
+  // Champion banner
+  const finalRound = rounds[rounds.length - 1];
+  const banner = document.getElementById('champion-banner');
+  if (finalRound && finalRound.matches[0]) {
+    const fm = finalRound.matches[0];
+    const champ = fm.winner === 1 ? fm.t1 : fm.winner === 2 ? fm.t2 : null;
+    if (champ && banner) {
+      banner.classList.add('show');
+      document.getElementById('champ-name').textContent = champ;
+    } else if (banner) {
+      banner.classList.remove('show');
+    }
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function render() {
+  renderBracket();
+  autoSave();
+}
+
+function renderBracket() {
+  const data = STATE.main;
+  const container = document.getElementById('main-rounds');
+  container.innerHTML = '';
+
+  data.rounds.forEach((round, rIdx) => {
+    const col = document.createElement('div');
+    col.className = 'round-col';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'round-label';
+    lbl.textContent = round.label;
+    col.appendChild(lbl);
+
+    round.matches.forEach((m, mIdx) => {
+      const isTBD = (m.t1 === 'TBD' || m.t2 === 'TBD') && rIdx > 0;
+      const div = document.createElement('div');
+      div.className = 'match clickable' + (isTBD ? ' tbd-match' : '');
+      div.innerHTML = buildMatchHTML(m, rIdx, mIdx);
+      if (adminMode) div.onclick = () => openEdit(rIdx, mIdx);
+      col.appendChild(div);
+    });
+
+    container.appendChild(col);
+  });
+
+  // re-check champion banner state after render
+  const rounds = STATE.main.rounds;
+  const finalRound = rounds[rounds.length - 1];
+  const banner = document.getElementById('champion-banner');
+  if (finalRound && finalRound.matches[0]) {
+    const fm = finalRound.matches[0];
+    const champ = fm.winner === 1 ? fm.t1 : fm.winner === 2 ? fm.t2 : null;
+    if (champ) { banner.classList.add('show'); document.getElementById('champ-name').textContent = champ; }
+    else banner.classList.remove('show');
+  }
+}
+
+function buildMatchHTML(m, rIdx, mIdx) {
+  const t1win = m.winner === 1;
+  const t2win = m.winner === 2;
+  const s1 = m.s1 !== '' ? m.s1 : '-';
+  const s2 = m.s2 !== '' ? m.s2 : '-';
+
+  const t1c = m.t1 === 'TBD' ? ' tbd' : '';
+  const t2c = m.t2 === 'TBD' ? ' tbd' : '';
+
+  return `
+    <div class="match-header">R${rIdx+1} · M${mIdx+1}</div>
+    <div class="team-row ${t1win ? 'winner' : ''}">
+      <span class="team-name${t1c}">${m.t1}</span>
+      <span class="team-score">${m.t1 === 'TBD' ? '' : s1}</span>
+    </div>
+    <div class="team-row ${t2win ? 'winner' : ''}">
+      <span class="team-name${t2c}">${m.t2}</span>
+      <span class="team-score">${m.t2 === 'TBD' ? '' : s2}</span>
+    </div>`;
+}
+
+// ── EDIT MODAL ────────────────────────────────────────────
+let _winSel = 0;
+function setWinner(w) {
+  _winSel = w;
+  [1,2,0].forEach(x => {
+    document.getElementById(`win-btn-${x}`).className = 'winner-btn' + (w === x ? ' active' : '');
+  });
+}
+
+let _cur = null;
+
+function openEdit(rIdx, mIdx) {
+  if (!adminMode) return;
+  const m = STATE.main.rounds[rIdx].matches[mIdx];
+  _cur = { rIdx, mIdx };
+  const isR1 = rIdx === 0;
+  document.getElementById('modal-title').textContent = `${STATE.main.rounds[rIdx].label} · Match ${mIdx+1}`;
+  document.getElementById('label-t1').textContent = 'Team 1';
+  document.getElementById('label-t2').textContent = 'Team 2';
+  document.getElementById('input-t1').value = m.t1;
+  document.getElementById('input-t2').value = m.t2;
+  document.getElementById('input-s1').value = m.s1;
+  document.getElementById('input-s2').value = m.s2;
+  document.getElementById('input-t1').readOnly = !isR1;
+  document.getElementById('input-t2').readOnly = !isR1;
+  document.getElementById('propagate-note').textContent = rIdx > 0
+    ? '⚡ Teams auto-filled from previous round'
+    : (rIdx === STATE.main.rounds.length - 1
+        ? '🏆 Setting winner crowns the Champion'
+        : '⚡ Winner auto-advances to next round');
+  setWinner(m.winner);
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  _cur = null;
+}
+
+function saveMatch() {
+  if (!_cur) return;
+  const s1v = document.getElementById('input-s1').value;
+  const s2v = document.getElementById('input-s2').value;
+
+  const m = STATE.main.rounds[_cur.rIdx].matches[_cur.mIdx];
+  if (_cur.rIdx === 0) {
+    m.t1 = document.getElementById('input-t1').value.trim() || m.t1;
+    m.t2 = document.getElementById('input-t2').value.trim() || m.t2;
+  }
+  m.s1 = s1v; m.s2 = s2v; m.winner = _winSel;
+  fullPropagate();
+
+  closeModal();
+  render();
+  pushToCloud().then(() => showSyncStatus('✓ Synced!', 'var(--win)'));
+}
+
+document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+// ── ADMIN AUTH (password checked server-side by the Worker) ──
+function openLogin() {
+  if (adminMode) { exitAdmin(); return; }
+  document.getElementById('loginOverlay').classList.add('open');
+  document.getElementById('pwInput').value = '';
+  document.getElementById('loginErr').style.display = 'none';
+  setTimeout(() => document.getElementById('pwInput').focus(), 60);
+}
+
+function closeLogin() {
+  document.getElementById('loginOverlay').classList.remove('open');
+}
+
+function enterAdminUI() {
+  adminMode = true;
+  document.body.classList.add('admin-mode');
+  document.getElementById('adminBtn').textContent = '🔓 Exit Admin';
+  document.getElementById('saveBtn').style.display = '';
+  document.getElementById('resetBtn').style.display = '';
+  document.getElementById('editHint').textContent = 'Click any match to set scores & winner — winners auto-advance!';
+}
+
+async function doLogin() {
+  const typed = document.getElementById('pwInput').value;
+  document.getElementById('loginErr').style.display = 'none';
+  try {
+    const res = await fetch(`${WORKER_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: typed })
+    });
+    if (res.ok) {
+      const { token } = await res.json();
+      localStorage.setItem('nocturn_admin_token', token);
+      closeLogin();
+      enterAdminUI();
+      render();
+    } else {
+      document.getElementById('loginErr').textContent = 'Incorrect password. Try again.';
+      document.getElementById('loginErr').style.display = 'block';
+      document.getElementById('pwInput').value = '';
+      document.getElementById('pwInput').focus();
+    }
+  } catch (e) {
+    document.getElementById('loginErr').textContent = 'Could not reach server. Check WORKER_URL.';
+    document.getElementById('loginErr').style.display = 'block';
+  }
+}
+
+function exitAdmin() {
+  adminMode = false;
+  localStorage.removeItem('nocturn_admin_token');
+  document.body.classList.remove('admin-mode');
+  document.getElementById('adminBtn').textContent = '🔐 Admin Login';
+  document.getElementById('saveBtn').style.display = 'none';
+  document.getElementById('resetBtn').style.display = 'none';
+  document.getElementById('editHint').textContent = 'Admin login required to edit results';
+  render();
+}
+
+document.getElementById('loginOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeLogin();
+});
+
+// ── INIT ──────────────────────────────────────────────────
+// Optimistically restore admin UI if a session token exists.
+// The Worker still validates the token on every write, so this
+// is just for UX — it grants no real access by itself.
+if (localStorage.getItem('nocturn_admin_token')) enterAdminUI();
+loadFromCloud();
+</script>
+</body>
+</html>
